@@ -1,0 +1,4 @@
+.ropeproject
+*.spec
+dist
+build
