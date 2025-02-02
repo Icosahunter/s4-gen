@@ -39,7 +39,7 @@ Here are the options:
 - `group_item_template`: Template to use for links in the auto generated navigation pages (must be html string currently)
 
 For templates S4 currently just uses python format strings, below you can see the default values for the config, which will clear some things up:
-```
+``` toml
 'assets' = ['*.css', '*.js', '*.png', '*.svg', '*.jpg', '*.jpeg', '*.gif', 'CNAME']
 'pages' = ['**/*.html', '**/*.txt', '**/*.md']
 'source' = '.'
