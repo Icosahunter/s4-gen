@@ -70,5 +70,5 @@ group_item_template = '<li><a href="{url}">{name}</a></li>'
 ### Command Line Interface
 
 To use S4 simply navigate to the folder with your `s4.toml` config file and do one of the following commands:
-`s4-gen build`: Builds the site directory and pages.
-`s4-gen serve`: Builds the site and serves it locally for viewing/testing.
+- `s4-gen build`: Builds the site directory and pages.
+- `s4-gen serve`: Builds the site and serves it locally for viewing/testing.
