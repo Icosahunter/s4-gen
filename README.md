@@ -40,12 +40,12 @@ Here are the options:
 
 For templates S4 currently just uses python format strings, below you can see the default values for the config, which will clear some things up:
 ``` toml
-'assets' = ['*.css', '*.js', '*.png', '*.svg', '*.jpg', '*.jpeg', '*.gif', 'CNAME']
-'pages' = ['**/*.html', '**/*.txt', '**/*.md']
-'source' = '.'
-'output' = 'dist/'
-#'home' = None (uses first page)
-'template' = """<!DOCTYPE html>
+assets = ['*.css', '*.js', '*.png', '*.svg', '*.jpg', '*.jpeg', '*.gif', 'CNAME']
+pages = ['**/*.html', '**/*.txt', '**/*.md']
+source = '.'
+output = 'dist/'
+#home = None (uses first page)
+template = """<!DOCTYPE html>
 <html lang="">
     <head>
     <meta charset="utf-8">
@@ -61,10 +61,10 @@ For templates S4 currently just uses python format strings, below you can see th
     </main>
     </body>
 </html>"""
-'nav_template' = '<nav>{items}</nav>'
-'nav_item_template' = '<a href="{url}">{name}</a>'
-'group_template' = '<ul>{items}</ul>'
-'group_item_template' = '<li><a href="{url}">{name}</a></li>'
+nav_template = '<nav>{items}</nav>'
+nav_item_template = '<a href="{url}">{name}</a>'
+group_template = '<ul>{items}</ul>'
+group_item_template = '<li><a href="{url}">{name}</a></li>'
 ```
 
 ### Command Line Interface
