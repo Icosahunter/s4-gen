@@ -6,6 +6,7 @@ import markdown
 import lxml.html
 import re
 import string
+import itertools
 
 default_config = {
     'assets': ['*.css', '*.js', '*.png', '*.svg', '*.jpg', '*.jpeg', '*.gif', 'CNAME'],
@@ -13,25 +14,58 @@ default_config = {
     'source': '.',
     'output': 'dist/',
     'home': None,
-    'template': None
+    'template': None,
+    'nav_template': '<nav>{items}</nav>',
+    'nav_item_template': '<a href="{url}">{name}</a>',
+    'group_template': '<ul>{items}</ul>',
+    'group_item_template': '<li><a href="{url}">{name}</a></li>'
 }
 
-default_page_config = {
-    'type': 'collection',
-    'pages': None,
-    'preview_template': None,
-    'collection_template': None
-}
+def url_from_path(source, path):
+    return '/' + str(path.relative_to(source).with_suffix('')) + '/'
 
-def build_collection(pages, template):
-    collection_text = ''
-    pages.sort(key = lambda x: x.stem)
-    for page in pages:
-        name = slug_to_name(page.stem)
-        text = truncate(lxml.html.parse(page).text_content())
-        url = urllib.parse.quote(page)
-        collection_text += template.format(name=name, text=text, url=url)
-    return collection_text
+def collapse_dir(dir, paths):
+    return len([x for x in dir.iterdir() if x in paths]) == 1
+
+def paths_from_pages(source, pages):
+    dirs = list(set(itertools.chain(*(x.parents for x in pages))))
+    dirs.remove(source)
+    dirs.remove(Path('.'))
+    return [*dirs, *pages]
+
+def build_nav(source, paths, nav_template, nav_item_template):
+
+    nav_items = ''
+
+    for path in source.iterdir():
+        if path in paths:
+            print(path)
+            while True:
+                if path.is_file() or not collapse_dir(path, paths):
+                    nav_items += (nav_item_template.format(url=url_from_path(source, path), name=slug_to_name(path.stem)))
+                    break
+                else:
+                    path = list(path.iterdir())[0]
+
+    return nav_template.format(items=nav_items)
+
+def build_group(source, dir, paths, group_template, group_item_template):
+    group_items = ''
+    for path in dir.iterdir():
+        if path in paths:
+            group_items += group_item_template.format(url=url_from_path(source, path), name=slug_to_name(path.stem))
+    return group_template.format(items=group_items)
+
+def list_groups(source, paths):
+    pages_no_ext = [x.with_suffix('') for x in paths if x.is_file()]
+    filtered_dirs = [x for x in paths if x.is_dir() and x not in pages_no_ext]
+    groups = []
+
+    for x in filtered_dirs:
+        if not collapse_dir(x, paths):
+            groups.append(x)
+
+    return groups
 
 def truncate(text, threshold=100):
     if len(text) < threshold:
@@ -44,41 +78,23 @@ def slug_to_name(slug):
     name = name.title()
     return name
 
-#def build_nav(page_paths, source):
-#    html = ''
-#    for page in page_paths:
-#        if page.is_file():
-#            href = page.relative_to(source).as_posix()
-#            name = page.stem
-#            html += f'<a href="{href}">{name}</a>'
-#        elif page.is_dir():
-
 def process_txt(text):
     urls = re.findall('https?://.*\\W', text)
     for url in urls:
         text = text.replace(url, f'<a href="{url}">{url}</a>')
 
-def process_s4_toml(text):
-    page_conf = default_page_config.copy()
-    page_conf.update(tomllib.loads(text))
-    if page_conf['type'] == 'collection':
-        t = ''
-        with open()
-
 def preprocess(path):
     text = ''
     with open(path, 'r') as f:
         text = f.read()
-    if path.suffix == '.s4.toml':
-        return process_s4_toml(text)
-    elif path.suffix == 'md':
+    if path.suffix == '.md':
         return markdown.markdown(text)
-    elif path.suffix == 'txt':
+    elif path.suffix == '.txt':
         return process_txt(text)
     else:
         return text
 
-def build(source, output, pages, assets, home, template):
+def build(source, output, pages, assets, home, template, nav_template, nav_item_template, group_template, group_item_template):
 
     # Convert any string paths to Path objects
     source = Path(source)
@@ -118,17 +134,41 @@ def build(source, output, pages, assets, home, template):
     with open(template, 'r') as f:
         template_string = f.read()
 
+    paths = paths_from_pages(source, page_paths)
+
+    nav = build_nav(source, paths, nav_template, nav_item_template)
+
+    if home is not None:
+        with open(output / 'index.html', '+w') as f:
+            f.write(
+f"""<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Refresh" content="0; url='{url_from_path(source, home)}'" />
+    </head>
+</html>"""
+            )
+
     # Build pages
     for x in page_paths:
-        page_string = ''
+        content = ''
 
         dest = output / x.relative_to(source).with_suffix('') / 'index.html'
-        if x == home:
-            dest = output / 'index.html'
-        dest.parent.mkdir(exist_ok=True)
-        page_string = template_string.format(content=preprocess(x))
+
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        content = template_string.format(content=preprocess(x), nav=nav)
         with open(dest, '+w') as f:
-            f.write(page_string)
+            f.write(content)
+
+    # Build groups
+    for x in list_groups(source, paths):
+        content = build_group(source, x, paths, group_template, group_item_template)
+        print(x)
+        dest = output / x.relative_to(source).with_suffix('') / 'index.html'
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        content = template_string.format(content=content, nav=nav)
+        with open(dest, '+w') as f:
+            f.write(content)
 
 if __name__ == '__main__':
     conf = default_config.copy()
