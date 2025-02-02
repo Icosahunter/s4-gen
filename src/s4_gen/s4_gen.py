@@ -5,8 +5,10 @@ import urllib.parse
 import markdown
 import lxml.html
 import re
-import string
 import itertools
+import http.server
+import sys
+import webbrowser
 
 default_config = {
     'assets': ['*.css', '*.js', '*.png', '*.svg', '*.jpg', '*.jpeg', '*.gif', 'CNAME'],
@@ -14,7 +16,22 @@ default_config = {
     'source': '.',
     'output': 'dist/',
     'home': None,
-    'template': None,
+    'template': """<!DOCTYPE html>
+<html lang="">
+    <head>
+    <meta charset="utf-8">
+    <title></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/concrete.css/3.0.0/concrete.min.css">
+    </head>
+    <body>
+    <header>
+        {nav}
+    </header>
+    <main>
+        {content}
+    </main>
+    </body>
+</html>""",
     'nav_template': '<nav>{items}</nav>',
     'nav_item_template': '<a href="{url}">{name}</a>',
     'group_template': '<ul>{items}</ul>',
@@ -30,7 +47,8 @@ def collapse_dir(dir, paths):
 def paths_from_pages(source, pages):
     dirs = list(set(itertools.chain(*(x.parents for x in pages))))
     dirs.remove(source)
-    dirs.remove(Path('.'))
+    if source != Path('.'):
+        dirs.remove(Path('.'))
     return [*dirs, *pages]
 
 def build_nav(source, paths, nav_template, nav_item_template):
@@ -99,9 +117,18 @@ def build(source, output, pages, assets, home, template, nav_template, nav_item_
     # Convert any string paths to Path objects
     source = Path(source)
     output = Path(output)
-    template = Path(template)
+
     if home is not None:
         home = Path(home)
+
+    template_string = ''
+    if '<!DOCTYPE html>' in template:
+        template_string = template
+        template = None
+    else:
+        template = Path(template)
+        with open(template, 'r') as f:
+            template_string = f.read()
 
     # Remove old output
     if output.exists():
@@ -129,25 +156,22 @@ def build(source, output, pages, assets, home, template, nav_template, nav_item_
         dest.parent.mkdir(exist_ok=True)
         shutil.copy(x, dest)
 
-    # Read the template
-    template_string = ''
-    with open(template, 'r') as f:
-        template_string = f.read()
-
     paths = paths_from_pages(source, page_paths)
 
     nav = build_nav(source, paths, nav_template, nav_item_template)
 
-    if home is not None:
-        with open(output / 'index.html', '+w') as f:
-            f.write(
+    if home is None:
+        home = paths[0]
+
+    with open(output / 'index.html', '+w') as f:
+        f.write(
 f"""<!DOCTYPE html>
 <html>
     <head>
         <meta http-equiv="Refresh" content="0; url='{url_from_path(source, home)}'" />
     </head>
 </html>"""
-            )
+        )
 
     # Build pages
     for x in page_paths:
@@ -170,8 +194,37 @@ f"""<!DOCTYPE html>
         with open(dest, '+w') as f:
             f.write(content)
 
-if __name__ == '__main__':
+def serve(dir):
+
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=dir, **kwargs)
+
+    server = http.server.HTTPServer(('localhost', 8000), Handler)
+
+    webbrowser.open('localhost:8000/')
+
+    server.serve_forever()
+
+def load_conf():
     conf = default_config.copy()
-    with open('s4.toml', 'rb') as f:
-        conf.update(tomllib.load(f))
-    build(**conf)
+    conf_file = Path('s4.toml')
+    if conf_file.exists():
+        with open('s4.toml', 'rb') as f:
+            conf.update(tomllib.load(f))
+    return conf
+
+def run():
+    if len(sys.argv) == 1:
+        print('S4 Gen\n-------------------------------------------------\nA Super Simple Static Site Generator\n-------------------------------------------------\n commands: \n build - build site \n serve - build and serve site locally for testing')
+    elif sys.argv[1] == 'build':
+        build(**load_conf())
+    elif sys.argv[1] == 'serve':
+        conf = load_conf()
+        build(**conf)
+        serve(conf['output'])
+    else:
+        print(f'Unrecognized command "{sys.argv[1]}"')
+
+if __name__ == '__main__':
+    run()
