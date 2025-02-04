@@ -1,4 +1,7 @@
-# S4 Gen
+<div align="center">
+    <img src="logo.svg" width="150">
+    <h1> S4 Gen </h1>
+</div>
 
 S4 Gen is a Super Simple Static Site Generator.
 

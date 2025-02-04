@@ -4,6 +4,7 @@ import shutil
 import urllib.parse
 import markdown
 import lxml.html
+import jinja
 import re
 import itertools
 import http.server
@@ -16,12 +17,39 @@ default_config = {
     'source': '.',
     'output': 'dist/',
     'home': None,
+    'icon': None,
+    'logo': None,
+    'name': None,
+    'notice': None,
     'template': """<!DOCTYPE html>
 <html lang="">
     <head>
     <meta charset="utf-8">
     <title></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/concrete.css/3.0.0/concrete.min.css">
+    <style>
+        @media (min-aspect-ratio: 1.2) {
+            body > * {
+                width: 45vw;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+        @media (max-aspect-ratio: 1.2) {
+            body > * {
+                width: 100%;
+            }
+        }
+        body {
+            margin: 0;
+        }
+        header, footer {
+            padding: 1em;
+            background: lightgrey;
+        }
+        header > nav > a {
+            margin-left: 2em;
+        }
+    </style>
     </head>
     <body>
     <header>
@@ -35,7 +63,7 @@ default_config = {
     'nav_template': '<nav>{items}</nav>',
     'nav_item_template': '<a href="{url}">{name}</a>',
     'group_template': '<ul>{items}</ul>',
-    'group_item_template': '<li><a href="{url}">{name}</a></li>'
+    'group_item_template': '<li><a href="{url}">{name}</a><br><p>{preview}</p></li>'
 }
 
 def url_from_path(source, path):
@@ -71,8 +99,18 @@ def build_group(source, dir, paths, group_template, group_item_template):
     group_items = ''
     for path in dir.iterdir():
         if path in paths:
-            group_items += group_item_template.format(url=url_from_path(source, path), name=slug_to_name(path.stem))
+            group_items += group_item_template.format(url=url_from_path(source, path), name=slug_to_name(path.stem), preview=truncate(lxml.html.parse(path).text_content()))
     return group_template.format(items=group_items)
+
+def build_heading(source, name, icon, logo):
+    if logo:
+        return f'<a href="/"><img src="{url_from_path(source, logo)}"></a>'
+    elif name and icon:
+        return f'<a href="/"><h1><img src="{url_from_path(source, icon)}">{name}</h1></a>'
+    elif icon:
+        return f'<a href="/"><img src="{url_from_path(source, icon)}"></a>'
+    elif name:
+        return f'<a href="/"><h1>{name}</h1></a>'
 
 def list_groups(source, paths):
     pages_no_ext = [x.with_suffix('') for x in paths if x.is_file()]
@@ -92,7 +130,9 @@ def truncate(text, threshold=100):
        return text[0:threshold-3] + '...'
 
 def slug_to_name(slug):
-    name = re.sub(r'\D([-_]).|.([-_])\D', ' ', slug)
+    name = re.sub(r'(?<=\D)[-_]', ' ', slug)
+    name = re.sub(r'[-_](?=\D)', ' ', slug)
+    name = name.strip()
     name = name.title()
     return name
 
@@ -112,23 +152,40 @@ def preprocess(path):
     else:
         return text
 
-def build(source, output, pages, assets, home, template, nav_template, nav_item_template, group_template, group_item_template):
+def load_template(template):
+    if re.search('</\\S *>', template):
+        return None, template
+    else:
+        with open(template, 'r') as f:
+            return Path(template), f.read()
+
+def build(source,
+          output,
+          pages,
+          assets,
+          home,
+          icon,
+          logo,
+          name,
+          notice,
+          template,
+          nav_template,
+          nav_item_template,
+          group_template,
+          group_item_template):
 
     # Convert any string paths to Path objects
     source = Path(source)
     output = Path(output)
 
-    if home is not None:
-        home = Path(home)
+    # Load templates
+    template, template_string = load_template(template)
+    nav_template, nav_template_string = load_template(nav_template)
+    nav_item_template, nav_item_template_string = load_template(nav_item_template)
+    group_template, group_template_string = load_template(group_template)
+    group_item_template, group_item_template_string = load_template(group_item_template)
 
-    template_string = ''
-    if '<!DOCTYPE html>' in template:
-        template_string = template
-        template = None
-    else:
-        template = Path(template)
-        with open(template, 'r') as f:
-            template_string = f.read()
+    templates = [template, nav_template, nav_item_template, group_template, group_item_template]
 
     # Remove old output
     if output.exists():
@@ -145,7 +202,7 @@ def build(source, output, pages, assets, home, template, nav_template, nav_item_
         page_paths.extend(source.glob(x))
 
     # Filter out assets and the template from the page paths
-    page_paths = [x for x in page_paths if x not in asset_paths and x != template ]
+    page_paths = [x for x in page_paths if x not in asset_paths and x not in templates]
 
     # Make a new output folder
     output.mkdir(exist_ok=True)
@@ -160,8 +217,11 @@ def build(source, output, pages, assets, home, template, nav_template, nav_item_
 
     nav = build_nav(source, paths, nav_template, nav_item_template)
 
+    # Handle home page
     if home is None:
         home = paths[0]
+    else:
+        home = Path(home)
 
     with open(output / 'index.html', '+w') as f:
         f.write(

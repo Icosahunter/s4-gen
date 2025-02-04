@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="512mm"
+   height="512mm"
+   viewBox="0 0 512 511.99999"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   sodipodi:docname="logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#b2b2b2"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.1767767"
+     inkscape:cx="178.1909"
+     inkscape:cy="1677.2572"
+     inkscape:window-width="1920"
+     inkscape:window-height="1012"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <circle
+     style="font-variation-settings:'wght' 600;fill:#ffffff;fill-opacity:1;stroke-width:4.2168;stroke-linecap:square;stroke-linejoin:round;stroke-dashoffset:10.2841"
+     id="path1"
+     cx="411.48962"
+     cy="353.87271"
+     r="232.40144"
+     transform="translate(-155.48963,-97.872722)" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-155.48963,-97.872723)">
+    <g
+       id="g4"
+       transform="matrix(1.4763675,0,0,1.4763675,-194.29015,-178.45262)">
+      <path
+         style="font-size:300.314px;line-height:1.8;font-family:UnifrakturMaguntia;-inkscape-font-specification:'UnifrakturMaguntia, @wght=900';font-variation-settings:'wght' 900;text-align:center;text-anchor:middle;stroke-width:2457.76;stroke-linecap:square;stroke-linejoin:round;stroke-dashoffset:10.2841"
+         d="m 361.46446,273.46675 q 20.52928,-5.4256 37.68589,2.49284 11.58438,5.57223 18.03644,15.39696 6.45206,9.82472 5.13232,21.99565 -1.31974,12.17093 -8.06508,18.03644 -6.59869,5.8655 -10.85119,9.09153 -4.25249,3.22603 -8.06507,6.74534 -7.47852,7.03861 -1.1731,12.61084 19.79609,17.15661 22.72884,28.88762 3.07939,11.73102 -4.10585,20.67592 -9.97137,12.31756 -21.26247,23.46203 -11.14446,10.99783 -22.14229,22.28893 -5.4256,5.27896 -6.5987,-0.58655 -1.90629,-8.06508 -17.30324,-14.07722 -15.25032,-6.15878 -32.2603,-11.73102 -3.07939,-1.1731 -0.43991,-4.39913 3.95922,-4.10585 8.21171,-8.21171 4.25249,-4.10585 8.50499,-8.06507 6.59869,-6.15878 4.39913,-10.85119 -2.05293,-4.83904 -7.7718,-10.85119 -14.37049,-14.95704 -13.93058,-28.0078 0.58655,-13.05075 9.53145,-23.02212 8.35835,-9.23817 18.76962,-16.86333 10.55792,-7.7718 19.94273,-17.30325 1.1731,-1.02646 3.07939,0.73319 19.64945,17.44988 32.70021,17.59652 13.19739,0.14664 17.15661,-7.7718 3.95922,-8.06507 -0.73319,-16.71669 -4.69241,-8.79826 -15.25032,-14.51713 -15.98351,-7.91844 -35.04641,-1.46638 -3.81258,1.46638 -4.54577,-1.61302 -0.73319,-3.07939 3.66594,-3.95921 z M 338.00243,405.1474 q -1.46637,2.49284 0.87983,3.81258 10.41128,4.83904 20.82255,9.53145 10.41128,4.6924 20.96919,9.09153 7.33189,3.22603 14.66377,-8.35835 9.09154,-14.51713 -24.04858,-38.1258 -5.13232,-3.07939 -12.61084,2.93276 z m 20.236,-30.50065 q 1.75966,1.31974 3.22603,-0.14663 l 27.27461,-26.68806 q 1.31974,-1.46638 0.73319,-2.63948 -0.43991,-1.31974 -2.19956,-1.46638 -8.35835,-0.87982 -18.47635,-6.45206 -16.27679,-9.23817 -21.26247,-12.4642 -4.98568,-3.22603 -12.75748,5.86551 -9.82472,11.58437 -0.14663,22.14229 9.82472,10.55791 23.60866,21.84901 z"
+         id="text1"
+         aria-label="s" />
+      <path
+         d="m 475.01267,349.97549 v -69.34575 l 11.14923,0.24504 -30.9973,37.98089 -2.94046,-3.67557 h 56.84882 v 17.15266 H 442.9127 l -8.33129,-16.04999 43.73928,-52.80569 h 16.7851 v 86.49841 z"
+         id="text4"
+         style="font-size:122.519px;line-height:1.8;font-family:Lexend;-inkscape-font-specification:'Lexend, @wght=700';font-variation-settings:'wght' 700;text-align:center;text-anchor:middle;stroke-width:243.109;stroke-linecap:square;stroke-linejoin:round;stroke-dashoffset:10.2841"
+         aria-label="4" />
+    </g>
+  </g>
+</svg>
