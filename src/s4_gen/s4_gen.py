@@ -21,49 +21,8 @@ default_config = {
     'logo': None,
     'name': None,
     'notice': None,
-    'template': """<!DOCTYPE html>
-<html lang="">
-    <head>
-    <meta charset="utf-8">
-    <title></title>
-    <style>
-        @media (min-aspect-ratio: 1.2) {
-            body > * {
-                width: 45vw;
-                margin-left: auto;
-                margin-right: auto;
-            }
-        }
-        @media (max-aspect-ratio: 1.2) {
-            body > * {
-                width: 100%;
-            }
-        }
-        body {
-            margin: 0;
-        }
-        header, footer {
-            padding: 1em;
-            background: lightgrey;
-        }
-        header > nav > a {
-            margin-left: 2em;
-        }
-    </style>
-    </head>
-    <body>
-    <header>
-        {nav}
-    </header>
-    <main>
-        {content}
-    </main>
-    </body>
-</html>""",
-    'nav_template': '<nav>{items}</nav>',
-    'nav_item_template': '<a href="{url}">{name}</a>',
-    'group_template': '<ul>{items}</ul>',
-    'group_item_template': '<li><a href="{url}">{name}</a><br><p>{preview}</p></li>'
+    'template': 'page_template.html',
+    'nav_page_template': 'nav_page_template.html',
 }
 
 def url_from_path(source, path):
@@ -79,23 +38,22 @@ def paths_from_pages(source, pages):
         dirs.remove(Path('.'))
     return [*dirs, *pages]
 
-def build_nav(source, paths, nav_template, nav_item_template):
+def get_nav_links(source, paths):
 
-    nav_items = ''
+    nav_links = []
 
     for path in source.iterdir():
         if path in paths:
-            print(path)
             while True:
                 if path.is_file() or not collapse_dir(path, paths):
-                    nav_items += (nav_item_template.format(url=url_from_path(source, path), name=slug_to_name(path.stem)))
+                    nav_links.append(url_from_path(source, path))
                     break
                 else:
                     path = list(path.iterdir())[0]
 
-    return nav_template.format(items=nav_items)
+    return nav_links
 
-def build_group(source, dir, paths, group_template, group_item_template):
+def get_subpages(source, dir, paths, group_template, group_item_template):
     group_items = ''
     for path in dir.iterdir():
         if path in paths:
@@ -154,10 +112,10 @@ def preprocess(path):
 
 def load_template(template):
     if re.search('</\\S *>', template):
-        return None, template
+        return None, jinja.Template(template)
     else:
         with open(template, 'r') as f:
-            return Path(template), f.read()
+            return Path(template), jinja.Template(f.read())
 
 def build(source,
           output,
@@ -169,23 +127,17 @@ def build(source,
           name,
           notice,
           template,
-          nav_template,
-          nav_item_template,
-          group_template,
-          group_item_template):
+          group_template):
 
     # Convert any string paths to Path objects
     source = Path(source)
     output = Path(output)
 
     # Load templates
-    template, template_string = load_template(template)
-    nav_template, nav_template_string = load_template(nav_template)
-    nav_item_template, nav_item_template_string = load_template(nav_item_template)
-    group_template, group_template_string = load_template(group_template)
-    group_item_template, group_item_template_string = load_template(group_item_template)
+    template_path, template = load_template(template)
+    group_template_path, group_template = load_template(group_template)
 
-    templates = [template, nav_template, nav_item_template, group_template, group_item_template]
+    template_paths = [template_path, group_template_path]
 
     # Remove old output
     if output.exists():
@@ -202,7 +154,7 @@ def build(source,
         page_paths.extend(source.glob(x))
 
     # Filter out assets and the template from the page paths
-    page_paths = [x for x in page_paths if x not in asset_paths and x not in templates]
+    page_paths = [x for x in page_paths if x not in asset_paths and x not in template_paths]
 
     # Make a new output folder
     output.mkdir(exist_ok=True)
@@ -214,8 +166,6 @@ def build(source,
         shutil.copy(x, dest)
 
     paths = paths_from_pages(source, page_paths)
-
-    nav = build_nav(source, paths, nav_template, nav_item_template)
 
     # Handle home page
     if home is None:

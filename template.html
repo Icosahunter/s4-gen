@@ -32,12 +32,12 @@
 <header>
     <nav>
         {% for url in nav_links %}
-
+            <a href="{{ url }}">{{ url | url2title }}</a>
         {% endfor %}
     </nav>
 </header>
 <main>
-    {content}
+    {{ content }}
 </main>
 </body>
 </html>
