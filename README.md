@@ -8,7 +8,7 @@ S4 Gen is a Super Simple Static Site Generator.
 S4 is currently in development and not ready for production use.
 
 > [!CAUTION]
-> S4 Main branch is currently not stable and general functionality is broken.
+> S4 Main branch is currently not stable and general functionality may be broken
 
 ## Installation
 
