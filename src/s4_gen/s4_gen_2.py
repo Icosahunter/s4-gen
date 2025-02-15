@@ -1,20 +1,18 @@
 from pathlib import Path
 import tomllib
+import markdown
 import urllib.parse
 import re
+import shutil
 import itertools
-import jinja
+from jinja2 import Template
 import http.server
 import webbrowser
-
-def path2pretty_url(path):
-
-    return path
 
 class Config():
     def __init__(self, path = None, args = {}):
 
-        self.path = Path(__file__) / '../data/default_config.toml'
+        self.path = Path(__file__).parent / '../data/default_config.toml'
 
         if path:
             self.path = Path(path)
@@ -29,14 +27,16 @@ class Config():
 
         self.source = Path(self.source)
         self.output = Path(self.output)
-        self.template = Path(self.template)
 
     def __getattr__(self, key):
-        return self.context[key]
+        if key in self.data:
+            return self.data[key]
+        else: # TODO: make this smarter
+            return None
 
 class Site():
 
-    def __init__(self, config):
+    def __init__(self, config=Config()):
 
         self.config = config
         self.context = {}
@@ -45,10 +45,12 @@ class Site():
         self.asset_paths = []
         for x in self.config.assets:
             self.asset_paths.extend(self.config.source.glob(x))
+        self.asset_paths = [x for x in self.asset_paths if self.config.output not in x.parents]
 
         # Load templates
-        template_path, template = self.load_template(self.config.template)
-        self.template_paths = [template_path]
+        self.template_path, self.template = self.load_template(self.config.template) #TODO: Make it so main template can be something other than html
+        self.auot_nav_page_template_path, self.auto_nav_page_template = self.load_template(self.config.nav_page_template)
+        self.template_paths = [self.template_path, self.auot_nav_page_template_path]
 
         # Get page paths
         self.page_paths = []
@@ -56,7 +58,10 @@ class Site():
             self.page_paths.extend(self.config.source.glob(x))
 
         # Filter out assets and the template from the page paths
-        self.page_paths = [x for x in self.page_paths if x not in self.asset_paths and x not in self.template_paths]
+        self.page_paths = [x for x in self.page_paths if
+            x not in self.asset_paths
+            and x not in self.template_paths
+            and self.config.output not in x.parents]
 
         self.pages = {}
 
@@ -64,8 +69,12 @@ class Site():
             self.pages[str(page)] = Page(self, page)
 
         # Get all directories containing pages
-        self.page_dirs = list(set(itertools.chain(*(x.relative_to(self.source).parents for x in self.page_paths))))
-        self.page_dirs.remove('.')
+        self.page_dirs = list(set(itertools.chain(*(x.relative_to(self.config.source).parents for x in self.page_paths))))
+        self.page_dirs.remove(Path('.'))
+
+        if self.config.auto_nav_pages:
+            for x in self.get_auto_nav_pages():
+                self.pages[x] = AutoNavPage(self, x)
 
         self.page_dirs_and_paths = [*self.page_dirs, *self.page_paths]
 
@@ -73,9 +82,6 @@ class Site():
             self.home = list(self.pages.values())[0]
         else:
             self.home = self.pages[self.config.home]
-
-        self.jinja_env = jinja.Environment(loader=jinja.DictLoader({'template': template}))
-        self.template  = self.jinja_env.get_template('template')
 
     def __getattr__(self, key):
         if key in self.context:
@@ -95,23 +101,30 @@ class Site():
     #        self.templates[k] = content
 
     def load_template(self, template):
-        if re.search('</\\S *>', template):
-            return None, jinja.Template(template)
+        if re.search('</\\S+ *>', str(template)):
+            return None, Template(template)
         else:
             with open(template, 'r') as f:
-                return Path(template), jinja.Template(f.read())
+                return Path(template), Template(f.read())
 
     def build_context(self):
         self.context['root_pages'] = self.get_root_pages()
 
+    def clean(self):
+        if self.config.output.exists():
+            shutil.rmtree(str(self.config.output))
+
     def build(self):
+
+        self.clean()
 
         self.build_context()
 
-        for page in self.pages.values():
-            page.build_context()
+        for x in self.pages.values():
+            x.build_context()
 
-        with open(self.config.output / 'index.html', '+w') as f:
+        self.config.output.mkdir(parents=True, exist_ok=True)
+        with open(self.config.output / 'index.html', 'w+') as f:
                 f.write(
 f"""<!DOCTYPE html>
 <html>
@@ -119,6 +132,24 @@ f"""<!DOCTYPE html>
         <meta http-equiv="Refresh" content="0; url='{self.home.url}'" />
     </head>
 </html>""")
+
+        for x in self.pages.values():
+            y = x.template.render(**x.context, **self.context)
+            y = self.template.render(**x.context, **self.context, content=y)
+            x.dest.parent.mkdir(parents=True, exist_ok=True)
+            with open(x.dest, 'w+') as f:
+                f.write(y)
+
+    def get_auto_nav_pages(self):
+        pages_no_ext = [x.with_suffix('') for x in self.page_paths]
+        filtered_dirs = [x for x in self.page_dirs if x not in pages_no_ext]
+        nav_pages = []
+
+        for x in filtered_dirs:
+            if not self.collapse_dir(x):
+                nav_pages.append(x)
+
+        return nav_pages
 
     def serve(self):
 
@@ -166,7 +197,9 @@ f"""<!DOCTYPE html>
         root_pages = []
 
         for path in self.config.source.iterdir():
-            if path in self.page_dirs_and_paths:
+            if path in self.page_paths:
+                root_pages.append(self.pages[str(path)])
+            elif path in self.page_dirs and self.config.auto_nav_pages:
                 while True:
                     if path.is_file() or not self.collapse_dir(path):
                         root_pages.append(self.pages[str(path)])
@@ -179,12 +212,26 @@ f"""<!DOCTYPE html>
     def collapse_dir(self, dir):
         return len([x for x in dir.iterdir() if x in self.page_dirs_and_paths]) == 1
 
+    def preprocess(self, page):
+        text = page.context['raw_content']
+
+        if page.source.suffix == '.md':
+            return markdown.markdown(text)
+        elif page.source.suffix == '.txt':
+            urls = re.findall('https?://.*\\W', text)
+            for url in urls:
+                text = text.replace(url, f'<a href="{url}">{url}</a>')
+            return text
+
+        return text
+
 class Page():
     def __init__(self, site, source):
         self.site = site
         self.source = Path(source)
         self.dest = self.site.config.output / self.source.relative_to(self.site.config.source).with_suffix('') / 'index.html'
         self.context = {}
+        self.teomplate = None
 
     def __getattr__(self, key):
         if key in self.context:
@@ -196,5 +243,22 @@ class Page():
         self.context['url'] = self.site.url_quote('/' + str(self.source.relative_to(self.site.config.source).with_suffix('')) + '/')
         self.context['title'] = self.site.file2title(self.source.name)
         with open(self.source) as f:
-            self.context['content'] = f.read()
+            self.context['raw_content'] = f.read()
+            self.context['pre_content'] = self.site.preprocess(self)
+            self.template = Template(self.context['pre_content'])
+
         self.context['sub_pages'] = self.site.get_sub_pages(self.source)
+
+class AutoNavPage(Page):
+
+    def build_context(self):
+        self.context['url'] = self.site.url_quote('/' + str(self.source.relative_to(self.site.config.source).with_suffix('')) + '/')
+        self.context['title'] = self.site.file2title(self.source.name)
+        self.context['raw_content'] = self.site.auto_nav_page_template.source
+        self.context['pre_content'] = self.site.auto_nav_page_template.source
+        self.template = self.site.auto_nav_page_template
+        self.context['sub_pages'] = self.site.get_sub_pages(self.source)
+
+if __name__ == '__main__':
+    site = Site()
+    site.build()
