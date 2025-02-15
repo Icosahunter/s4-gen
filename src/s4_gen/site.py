@@ -43,7 +43,7 @@ class Site():
     def __init__(self, config=Config()):
 
         self.config = config
-        self.context = {}
+        self._context = {}
 
         # Get asset paths
         self.asset_paths = []
@@ -77,21 +77,29 @@ class Site():
         # Get all directories containing pages
         self.page_dirs = list(set(itertools.chain(*(x.relative_to(self.config.source).parents for x in self.page_paths))))
         self.page_dirs.remove(Path('.'))
+        self.page_dirs = [self.config.source / x for x in self.page_dirs]
+
+        self.page_dirs_and_paths = [*self.page_dirs, *self.page_paths]
 
         if self.config.auto_nav_pages:
             for x in self.get_auto_nav_pages():
-                self.pages[x] = AutoNavPage(self, x)
-
-        self.page_dirs_and_paths = [*self.page_dirs, *self.page_paths]
+                self.pages[str(x)] = AutoNavPage(self, x)
 
         if self.config.home is None:
             self.home = list(self.pages.values())[0]
         else:
             self.home = self.pages[self.config.home]
 
+        self.root_pages = []
+
     def __getattr__(self, key):
-        if key in self.context:
-            return self.context[key]
+        if key == 'context':
+            context = self._context.copy()
+            self.root_pages.sort(key=lambda x: x.title)
+            context['root_pages'] = [x._context for x in self.root_pages]
+            return context
+        if key in self._context:
+            return self._context[key]
         else: # TODO: make this smarter
             return None
 
@@ -114,7 +122,7 @@ class Site():
                 return Path(template), Template(f.read())
 
     def build_context(self):
-        self.context['root_pages'] = self.get_root_pages()
+        self.root_pages = self.get_root_pages()
 
     def clean(self):
         if self.config.output.exists():

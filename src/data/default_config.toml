@@ -2,7 +2,7 @@ assets = ['*.css', '*.js', '*.png', '*.svg', '*.jpg', '*.jpeg', '*.gif', 'CNAME'
 pages = ['**/*.html', '**/*.txt', '**/*.md']
 source = '.'
 output = 'dist/'
-auto_nav_pages = false
+auto_nav_pages = true
 #home = None (uses first page)
 template = """<!DOCTYPE html>
 <html lang="">
@@ -13,9 +13,11 @@ template = """<!DOCTYPE html>
     </head>
     <body>
     <header>
+        <nav>
         {% for page in root_pages %}
-            <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+            <a href="{{ page.url }}">{{ page.title }}</a>
         {% endfor %}
+        </nav>
     </header>
     <main>
         {{content}}
