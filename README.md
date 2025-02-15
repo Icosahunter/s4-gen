@@ -10,8 +10,6 @@ S4 is currently in development and not ready for production use.
 > [!CAUTION]
 > S4 Main branch is currently not stable and general functionality is broken.
 
----
-
 ## Installation
 
 To install S4 Gen as a python package:
