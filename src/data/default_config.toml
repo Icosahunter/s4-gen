@@ -8,8 +8,31 @@ template = """<!DOCTYPE html>
 <html lang="">
     <head>
     <meta charset="utf-8">
-    <title></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/concrete.css/3.0.0/concrete.min.css">
+    <title>{{title}}</title>
+    <style>
+    @media (min-aspect-ratio: 1.2) {
+            body > * {
+                width: 45vw;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+        @media (max-aspect-ratio: 1.2) {
+            body > * {
+                width: 100%;
+            }
+        }
+        body {
+            margin: 0;
+        }
+        header, footer {
+            padding: 1em;
+            background: lightgrey;
+        }
+        header > nav > a {
+            margin-left: 2em;
+        }
+    </style>
     </head>
     <body>
     <header>
