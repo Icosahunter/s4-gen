@@ -7,6 +7,11 @@ S4 Gen is a Super Simple Static Site Generator.
 
 S4 is currently in development and not ready for production use.
 
+> [!CAUTION]
+> S4 Main branch is currently not stable and general functionality is broken.
+
+---
+
 ## Installation
 
 To install S4 Gen as a python package:
@@ -36,17 +41,16 @@ Here are the options:
 - `output`: The directory to write the generated website files to
 - `home`: Which page to use as the landing page for your website (creates a redirect to this page)
 - `template`: Template to use for pages (can be file path or html string)
-- `nav_template`: Template to use for the navigation bar (must be html string currently)
-- `nav_item_template`: Template to use for links in the navigation bar (must be html string currently)
-- `group_template`: Template to use for page content of auto generated navigation pages (must be html string currently)
-- `group_item_template`: Template to use for links in the auto generated navigation pages (must be html string currently)
+- `nav_page_template`: Template to use for auto-generated navigation pages (must be html string currently)
+- `auto_nav_pages`: If true, automatically create navigation pages for directories that don't have a corresponding page
 
-For templates S4 currently just uses python format strings, below you can see the default values for the config, which will clear some things up:
+Templates in S4 use Jinja2 templating language; you can also use Jinja templating in page files.
 ``` toml
 assets = ['*.css', '*.js', '*.png', '*.svg', '*.jpg', '*.jpeg', '*.gif', 'CNAME']
 pages = ['**/*.html', '**/*.txt', '**/*.md']
 source = '.'
 output = 'dist/'
+auto_nav_pages = false
 #home = None (uses first page)
 template = """<!DOCTYPE html>
 <html lang="">
@@ -57,17 +61,23 @@ template = """<!DOCTYPE html>
     </head>
     <body>
     <header>
-        {nav}
+        {% for page in root_pages %}
+            <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+        {% endfor %}
     </header>
     <main>
-        {content}
+        {{content}}
     </main>
     </body>
 </html>"""
-nav_template = '<nav>{items}</nav>'
-nav_item_template = '<a href="{url}">{name}</a>'
-group_template = '<ul>{items}</ul>'
-group_item_template = '<li><a href="{url}">{name}</a></li>'
+nav_page_template = """
+<h2>{{ title }}</h2>
+<ul>
+    {% for page in sub_pages %}
+        <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+    {% endfor %}
+</ul>
+"""
 ```
 
 ### Command Line Interface

@@ -3,6 +3,7 @@ import tomllib
 import markdown
 import urllib.parse
 import re
+import sys
 import shutil
 import itertools
 from jinja2 import Template
@@ -258,6 +259,22 @@ class AutoNavPage(Page):
         self.context['pre_content'] = self.site.auto_nav_page_template.source
         self.template = self.site.auto_nav_page_template
         self.context['sub_pages'] = self.site.get_sub_pages(self.source)
+
+def run():
+    if len(sys.argv) == 1:
+        print('S4 Gen\n-------------------------------------------------\nA Super Simple Static Site Generator\n-------------------------------------------------\n commands: \n build - build site \n serve - build and serve site locally for testing')
+    elif sys.argv[1] == 'build':
+        site = Site()
+        site.build()
+    elif sys.argv[1] == 'serve':
+        site = Site()
+        site.build()
+        site.serve()
+    else:
+        print(f'Unrecognized command "{sys.argv[1]}"')
+
+if __name__ == '__main__':
+    run()
 
 if __name__ == '__main__':
     site = Site()
