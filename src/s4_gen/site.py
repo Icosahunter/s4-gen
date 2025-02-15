@@ -3,15 +3,18 @@ import tomllib
 import markdown
 import urllib.parse
 import re
-import sys
 import shutil
 import itertools
 from jinja2 import Template
 import http.server
 import webbrowser
+from s4_gen import Page, AutoNavPage
 
 class Config():
     def __init__(self, path = None, args = {}):
+
+        self._path = path
+        self._args = args
 
         self.path = Path(__file__).parent / '../data/default_config.toml'
 
@@ -44,8 +47,9 @@ class Site():
 
         # Get asset paths
         self.asset_paths = []
-        for x in self.config.assets:
-            self.asset_paths.extend(self.config.source.glob(x))
+        if self.config.assets:
+            for x in self.config.assets:
+                self.asset_paths.extend(self.config.source.glob(x))
         self.asset_paths = [x for x in self.asset_paths if self.config.output not in x.parents]
 
         # Load templates
@@ -55,8 +59,9 @@ class Site():
 
         # Get page paths
         self.page_paths = []
-        for x in self.config.pages:
-            self.page_paths.extend(self.config.source.glob(x))
+        if self.config.pages:
+            for x in self.config.pages:
+                self.page_paths.extend(self.config.source.glob(x))
 
         # Filter out assets and the template from the page paths
         self.page_paths = [x for x in self.page_paths if
@@ -115,9 +120,10 @@ class Site():
         if self.config.output.exists():
             shutil.rmtree(str(self.config.output))
 
-    def build(self):
+    def refresh(self):
+        self.__init__(config = self.config)
 
-        self.clean()
+    def build(self):
 
         self.build_context()
 
@@ -154,7 +160,7 @@ f"""<!DOCTYPE html>
 
     def serve(self):
 
-        dir = self.config.output
+        dir = str(self.config.output)
 
         class Handler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
@@ -225,57 +231,3 @@ f"""<!DOCTYPE html>
             return text
 
         return text
-
-class Page():
-    def __init__(self, site, source):
-        self.site = site
-        self.source = Path(source)
-        self.dest = self.site.config.output / self.source.relative_to(self.site.config.source).with_suffix('') / 'index.html'
-        self.context = {}
-        self.teomplate = None
-
-    def __getattr__(self, key):
-        if key in self.context:
-            return self.context[key]
-        else: # TODO: make this smarter
-            return None
-
-    def build_context(self):
-        self.context['url'] = self.site.url_quote('/' + str(self.source.relative_to(self.site.config.source).with_suffix('')) + '/')
-        self.context['title'] = self.site.file2title(self.source.name)
-        with open(self.source) as f:
-            self.context['raw_content'] = f.read()
-            self.context['pre_content'] = self.site.preprocess(self)
-            self.template = Template(self.context['pre_content'])
-
-        self.context['sub_pages'] = self.site.get_sub_pages(self.source)
-
-class AutoNavPage(Page):
-
-    def build_context(self):
-        self.context['url'] = self.site.url_quote('/' + str(self.source.relative_to(self.site.config.source).with_suffix('')) + '/')
-        self.context['title'] = self.site.file2title(self.source.name)
-        self.context['raw_content'] = self.site.auto_nav_page_template.source
-        self.context['pre_content'] = self.site.auto_nav_page_template.source
-        self.template = self.site.auto_nav_page_template
-        self.context['sub_pages'] = self.site.get_sub_pages(self.source)
-
-def run():
-    if len(sys.argv) == 1:
-        print('S4 Gen\n-------------------------------------------------\nA Super Simple Static Site Generator\n-------------------------------------------------\n commands: \n build - build site \n serve - build and serve site locally for testing')
-    elif sys.argv[1] == 'build':
-        site = Site()
-        site.build()
-    elif sys.argv[1] == 'serve':
-        site = Site()
-        site.build()
-        site.serve()
-    else:
-        print(f'Unrecognized command "{sys.argv[1]}"')
-
-if __name__ == '__main__':
-    run()
-
-if __name__ == '__main__':
-    site = Site()
-    site.build()
