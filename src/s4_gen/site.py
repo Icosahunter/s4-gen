@@ -13,16 +13,16 @@ from s4_gen import Page, AutoNavPage
 class Config():
     def __init__(self, path = None, args = {}):
 
-        self._path = path
-        self._args = args
-
+        #Get the default configuration path
         self.path = Path(__file__).parent / 'data/default_config.toml'
 
         self.data = {}
 
+        #Load the default configuration
         with open(self.path, 'br') as f:
             self.data = tomllib.load(f)
 
+        #If the config file path is specified, or an s4.toml file is found, update the configuration values with values from that file
         if path:
             self.path = Path(path)
             with open(self.path, 'br') as f:
@@ -32,17 +32,21 @@ class Config():
             with open(self.path, 'br') as f:
                 self.data.update(tomllib.load(f))
 
+        #Update configuration values with any directly specified arguments
         self.data.update(args)
 
+        #Convert source and output paths strings to Path objects
         self.source = Path(self.source)
         self.output = Path(self.output)
 
+        #If a home page file is not specified in the config, check if theres a file named 'home' or 'main', and use that
         if not self.home:
             home_files = [*list(self.source.glob('home.*')), *list(self.source.glob('main.*'))]
             home_files = [x for x in home_files if x.is_file()]
             if len(home_files) > 0:
                 self.data['home'] = str(home_files[0])
 
+    #Allow getting config data values with normal . notation
     def __getattr__(self, key):
         if key in self.data:
             return self.data[key]
@@ -80,8 +84,8 @@ class Site():
             and x not in self.template_paths
             and self.config.output not in x.parents]
 
+        # Create Page objects
         self.pages = {}
-
         for page in self.page_paths:
             self.pages[str(page)] = Page(self, page)
 
@@ -90,14 +94,17 @@ class Site():
         self.page_dirs.remove(Path('.'))
         self.page_dirs = [self.config.source / x for x in self.page_dirs]
 
+        # Combination of page paths and page dirs (convenient for use in some functions)
         self.page_dirs_and_paths = [*self.page_dirs, *self.page_paths]
 
+        # Create auto nav pages if configured to do so
         if self.config.auto_nav_pages:
             for x in self.get_auto_nav_pages():
                 self.pages[str(x)] = AutoNavPage(self, x)
 
         self.root_pages = []
 
+    #Allow getting context values with normal . notation
     def __getattr__(self, key):
         if key in self.context:
             return self.context[key]
@@ -115,6 +122,9 @@ class Site():
     #        self.template_paths.append(path)
     #        self.templates[k] = content
 
+    # Loads a Jinja template from a string
+    # If the string looks like html it uses the string itself
+    # Otherwise it assumes it's a path to a template, and reads that file
     def load_template(self, template):
         if re.search('</\\S+ *>', str(template)):
             return None, Template(template)
@@ -122,33 +132,41 @@ class Site():
             with open(template, 'r') as f:
                 return Path(template), Template(f.read())
 
+    # Builds context dictionary for use with Jinja templates
     def build_context(self):
         self.root_pages = self.get_root_pages()
         self.root_pages.sort(key=lambda x: x.dest.parent.name)
 
-        if self.config.home is None:
+        # Handle home file
+        if self.config.home is None: # If home doesn't exist use the first root page
             self.home = self.root_pages[0]
-        else:
+        else: # Otherwise, use the configured home page and make sure it is the first page in root
             self.home = self.pages[self.config.home]
-            self.root_pages.remove(self.home)
-            self.root_pages.insert(0, self.home)
+            if self.home in self.root_pages:
+                self.root_pages.remove(self.home)
+                self.root_pages.insert(0, self.home)
+
         self.context['root_pages'] = [x.context for x in self.root_pages]
 
+    # Remove output directory
     def clean(self):
         if self.config.output.exists():
             shutil.rmtree(str(self.config.output))
 
-    def refresh(self):
-        self.__init__(config = self.config)
-
+    # Build site files
     def build(self):
 
+        # Build site's context
         self.build_context()
 
+        # Build context for all the pages
         for x in self.pages.values():
             x.build_context()
 
+        # Create output directory
         self.config.output.mkdir(parents=True, exist_ok=True)
+
+        # Create main index file that redirects to the home page
         with open(self.config.output / 'index.html', 'w+') as f:
                 f.write(
 f"""<!DOCTYPE html>
@@ -158,6 +176,7 @@ f"""<!DOCTYPE html>
     </head>
 </html>""")
 
+        # Render and write page files
         for x in self.pages.values():
             y = x.template.render(**x.context, **self.context)
             y = self.template.render(**x.context, **self.context, content=y)
@@ -165,9 +184,29 @@ f"""<!DOCTYPE html>
             with open(x.dest, 'w+') as f:
                 f.write(y)
 
+    # Serve the site locally for viewing
+    def serve(self):
+
+            # Create request handler for the output directory
+            dir = str(self.config.output)
+            class Handler(http.server.SimpleHTTPRequestHandler):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, directory=dir, **kwargs)
+
+            # Create server object
+            server = http.server.HTTPServer(('localhost', 8000), Handler)
+
+            # Open the locally hosted site in the default browser
+            webbrowser.open('localhost:8000/')
+
+            # Serve the site
+            server.serve_forever()
+
+    # Get list of auto nav pages to create
     def get_auto_nav_pages(self):
-        pages_no_ext = [x.with_suffix('') for x in self.page_paths]
-        filtered_dirs = [x for x in self.page_dirs if x not in pages_no_ext]
+
+        pages = [x.dest.parent for x in self.pages.values()]
+        filtered_dirs = [x for x in self.page_dirs if x not in pages]
         nav_pages = []
 
         for x in filtered_dirs:
@@ -176,67 +215,39 @@ f"""<!DOCTYPE html>
 
         return nav_pages
 
-    def serve(self):
-
-        dir = str(self.config.output)
-
-        class Handler(http.server.SimpleHTTPRequestHandler):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, directory=dir, **kwargs)
-
-        server = http.server.HTTPServer(('localhost', 8000), Handler)
-
-        webbrowser.open('localhost:8000/')
-
-        server.serve_forever()
-
-    def url_quote(self, path):
-        url = str(path)
-        if self.prettify_urls:
-            url = re.sub('[_\\-\\s]+', '-', url)
-            url = re.sub('[^a-zA-Z0-9/\\-]', '', url)
-        else:
-            url = urllib.parse.quote(url)
-        return url
-
-    def file2title(self, filename):
-        name = re.sub(r'(?<=\D)[-_]', ' ', filename)
-        name = re.sub(r'[-_](?=\D)', ' ', name)
-        name = name.strip()
-        name = name.title()
-        return name
-
-    def get_sub_pages(self, path):
-        dir = path.with_suffix('')
-        if dir.is_dir():
-            subpages = []
-            for path in dir.iterdir():
-                if path in self.page_paths:
-                    subpages.append(self.pages[str(path)])
-            return subpages
-        else:
-            return []
-
+    # Get list of root pages
     def get_root_pages(self):
 
         root_pages = []
 
+        # Go through each file/dir at the root of the source directory
         for path in self.config.source.iterdir():
-            if path in self.page_paths:
+
+            if path in self.page_paths: # If it's a page file, add it to root pages list
                 root_pages.append(self.pages[str(path)])
-            elif path in self.page_dirs and self.config.auto_nav_pages:
-                while True:
-                    if path.is_file() or not self.collapse_dir(path):
-                        root_pages.append(self.pages[str(path)])
-                        break
-                    else:
-                        path = list(path.iterdir())[0]
+            elif path in self.page_dirs: # Handle directories
+                if self.config.auto_nav_pages: # If auto_nav_pages is on
+                    while True: # Drill down through collapsed dirs
+                        if path.is_file() or not self.collapse_dir(path):
+                            root_pages.append(self.pages[str(path)])
+                            break
+                        else:
+                            path = list(path.iterdir())[0]
+                else: # If auto_nav_pages is off
+                    while True: # Drill down through collapsed dirs
+                        if 'index.html' in [x.name for x in path.iterdir()]:
+                            root_pages.append(self.pages[str(path / 'index.html')])
+                            break
+                        elif self.collapse_dir(path):
+                            path = list(path.iterdir())[0]
+                        else:
+                            if path in self.page_paths:
+                                root_pages.append(self.pages[str(path)])
+                            break
 
         return root_pages
 
-    def collapse_dir(self, dir):
-        return len([x for x in dir.iterdir() if x in self.page_dirs_and_paths]) == 1
-
+    # Converts a page's source content to html
     def preprocess(self, page):
         text = page.context['raw_content']
 
@@ -249,3 +260,27 @@ f"""<!DOCTYPE html>
             return text
 
         return text
+
+    # If the config specifies it, prettify the urls so they use only lowercase alphanumerics with hyphens as seperators
+    def prettify_path(self, path):
+
+        dir = str(path.parent)
+        if self.config.prettify_urls:
+            dir = re.sub('[_\\-\\s]+', '-', dir)
+            dir = re.sub('[^a-zA-Z0-9/\\-]', '', dir)
+            dir = dir.lower()
+
+        return Path(dir, path.name)
+
+    # Convert a filename into a nice displayable title
+    def file2title(self, filename):
+        name = re.sub(r'(?<=\D)[-_]', ' ', filename)
+        name = re.sub(r'[-_](?=\D)', ' ', name)
+        name = name.strip()
+        name = name.title()
+        return name
+
+    # Return true if a dir should be 'collapsed'
+    # Checks if a dir contains only one child, in which case you don't need a nav page or anything for it
+    def collapse_dir(self, dir):
+        return len([x for x in dir.iterdir() if x in self.page_dirs_and_paths]) == 1

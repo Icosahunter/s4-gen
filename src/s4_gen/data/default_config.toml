@@ -3,6 +3,7 @@ pages = ['**/*.html', '**/*.txt', '**/*.md']
 source = '.'
 output = 'dist/'
 auto_nav_pages = true
+prettify_urls = true
 #home = None (uses first page)
 template = """<!DOCTYPE html>
 <html lang="">
