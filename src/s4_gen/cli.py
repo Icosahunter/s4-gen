@@ -2,20 +2,23 @@ import argparse
 from s4_gen import Site, Config
 
 def build(args):
-    site = Site(Config(args=vars(args)))
-    if args.clean:
+    args = {k:v for k, v in vars(args).items() if v is not None}
+    site = Site(Config(args=args))
+    if args['clean']:
         site.clean()
     site.build()
 
 def serve(args):
-    site = Site(Config(args=vars(args)))
-    if args.clean:
+    args = {k:v for k, v in vars(args).items() if v is not None}
+    site = Site(Config(args=args))
+    if args['clean']:
         site.clean()
     site.build()
     site.serve()
 
 def clean(args):
-    site = Site(Config(args=vars(args)))
+    args = {k:v for k, v in vars(args).items() if v is not None}
+    site = Site(Config(args=args))
     site.clean()
 
 parser = argparse.ArgumentParser(

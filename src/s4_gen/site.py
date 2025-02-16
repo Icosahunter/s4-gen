@@ -16,21 +16,32 @@ class Config():
         self._path = path
         self._args = args
 
-        self.path = Path(__file__).parent / '../data/default_config.toml'
+        self.path = Path(__file__).parent / 'data/default_config.toml'
+
+        self.data = {}
+
+        with open(self.path, 'br') as f:
+            self.data = tomllib.load(f)
 
         if path:
             self.path = Path(path)
+            with open(self.path, 'br') as f:
+                self.data.update(tomllib.load(f))
         elif Path('./s4.toml').exists():
             self.path = Path('./s4.toml')
-
-        self.data = {}
-        with open(self.path, 'br') as f:
-            self.data = tomllib.load(f)
+            with open(self.path, 'br') as f:
+                self.data.update(tomllib.load(f))
 
         self.data.update(args)
 
         self.source = Path(self.source)
         self.output = Path(self.output)
+
+        if not self.home:
+            home_files = [*list(self.source.glob('home.*')), *list(self.source.glob('main.*'))]
+            home_files = [x for x in home_files if x.is_file()]
+            if len(home_files) > 0:
+                self.data['home'] = str(home_files[0])
 
     def __getattr__(self, key):
         if key in self.data:
@@ -43,7 +54,7 @@ class Site():
     def __init__(self, config=Config()):
 
         self.config = config
-        self._context = {}
+        self.context = {}
 
         # Get asset paths
         self.asset_paths = []
@@ -85,21 +96,11 @@ class Site():
             for x in self.get_auto_nav_pages():
                 self.pages[str(x)] = AutoNavPage(self, x)
 
-        if self.config.home is None:
-            self.home = list(self.pages.values())[0]
-        else:
-            self.home = self.pages[self.config.home]
-
         self.root_pages = []
 
     def __getattr__(self, key):
-        if key == 'context':
-            context = self._context.copy()
-            self.root_pages.sort(key=lambda x: x.title)
-            context['root_pages'] = [x._context for x in self.root_pages]
-            return context
-        if key in self._context:
-            return self._context[key]
+        if key in self.context:
+            return self.context[key]
         else: # TODO: make this smarter
             return None
 
@@ -123,6 +124,15 @@ class Site():
 
     def build_context(self):
         self.root_pages = self.get_root_pages()
+        self.root_pages.sort(key=lambda x: x.dest.parent.name)
+
+        if self.config.home is None:
+            self.home = self.root_pages[0]
+        else:
+            self.home = self.pages[self.config.home]
+            self.root_pages.remove(self.home)
+            self.root_pages.insert(0, self.home)
+        self.context['root_pages'] = [x.context for x in self.root_pages]
 
     def clean(self):
         if self.config.output.exists():

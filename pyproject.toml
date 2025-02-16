@@ -3,13 +3,13 @@ requires = ['setuptools']
 build-backend = 'setuptools.build_meta'
 
 [tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
+dependencies = {file = ['requirements.txt']}
 
 [project]
-name = 's4-gen'
+name = 's4_gen'
 version = '0.0.0'
 description = 'A super simple static site generator.'
-dynamic = ["dependencies"]
+dynamic = ['dependencies']
 
 [project.scripts]
-s4-gen = 's4_gen:s4_gen.run'
+s4-gen = 's4_gen:cli.run'
