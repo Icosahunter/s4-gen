@@ -41,6 +41,7 @@ Here are the options:
 - `template`: Template to use for pages (can be file path or html string)
 - `nav_page_template`: Template to use for auto-generated navigation pages (must be html string currently)
 - `auto_nav_pages`: If true, automatically create navigation pages for directories that don't have a corresponding page
+- `prettify_urls`: Makes the page urls be only lowercase alphanumerics and hyphens (instead of spaces/underscores)
 
 Templates in S4 use Jinja2 templating language; you can also use Jinja templating in page files.
 ``` toml
@@ -48,20 +49,46 @@ assets = ['*.css', '*.js', '*.png', '*.svg', '*.jpg', '*.jpeg', '*.gif', 'CNAME'
 pages = ['**/*.html', '**/*.txt', '**/*.md']
 source = '.'
 output = 'dist/'
-auto_nav_pages = false
+auto_nav_pages = true
+prettify_urls = true
 #home = None (uses first page)
 template = """<!DOCTYPE html>
 <html lang="">
     <head>
     <meta charset="utf-8">
-    <title></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/concrete.css/3.0.0/concrete.min.css">
+    <title>{{title}}</title>
+    <style>
+    @media (min-aspect-ratio: 1.2) {
+            body > * {
+                width: 45vw;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+        @media (max-aspect-ratio: 1.2) {
+            body > * {
+                width: 100%;
+            }
+        }
+        body {
+            margin: 0;
+        }
+        header, footer {
+            padding: 1em;
+            background: lightgrey;
+        }
+        header > nav > a {
+            margin-left: 2em;
+        }
+    </style>
     </head>
     <body>
     <header>
+        <nav>
         {% for page in root_pages %}
-            <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+            <a href="{{ page.url }}">{{ page.title }}</a>
         {% endfor %}
+        </nav>
     </header>
     <main>
         {{content}}
