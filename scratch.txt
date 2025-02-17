@@ -1,0 +1,11 @@
+Site
+
+    init
+        for artifactHandler in artifactHandlers:
+            artifacts = artifactHandler.get_artifacts(self)
+            self.add_artifacts(artifacts)
+
+    build
+        for step in get_steps():
+            for artifact in artifacts:
+                artifact.build_step(step)

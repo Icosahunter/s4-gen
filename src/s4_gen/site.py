@@ -11,6 +11,27 @@ import webbrowser
 from s4_gen import Page, AutoNavPage
 
 class Config():
+
+    built_in_stylsheets = {
+        'almond': 'https://unpkg.com/almond.css@latest/dist/almond.lite.min.css',
+        'bahunya': 'https://cdn.jsdelivr.net/gh/kimeiga/bahunya/dist/bahunya.min.css',
+        'axist': 'https://unpkg.com/axist@latest/dist/axist.min.css',
+        'bolt': 'https://unpkg.com/boltcss/bolt.min.css',
+        'concrete': 'https://cdnjs.cloudflare.com/ajax/libs/concrete.css/3.0.0/concrete.min.css',
+        'magick': 'https://unpkg.com/magick.css',
+        'holiday': 'https://cdn.jsdelivr.net/npm/holiday.css@0.11.2',
+        'mvp': 'https://unpkg.com/mvp.css',
+        'new': 'https://cdn.jsdelivr.net/npm/@exampledev/new.css@1/new.min.css',
+        'pico': 'https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css',
+        'sakura': 'https://cdn.jsdelivr.net/npm/sakura.css/css/sakura.css',
+        'spcss': 'https://cdn.jsdelivr.net/npm/spcss@0.9.0',
+        'style': 'https://unpkg.com/style.css',
+        'tacit': 'https://cdn.jsdelivr.net/gh/yegor256/tacit@gh-pages/tacit-css-1.8.1.min.css',
+        'tty': 'https://unpkg.com/tty.css',
+        'tiny': 'https://cdn.jsdelivr.net/npm/tiny.css@0/dist/tiny.css',
+        'water': 'https://cdn.jsdelivr.net/npm/water.css@2/out/water.css'
+    }
+
     def __init__(self, path = None, args = {}):
 
         #Get the default configuration path
@@ -35,16 +56,13 @@ class Config():
         #Update configuration values with any directly specified arguments
         self.data.update(args)
 
+        if 'stylesheet' in self.data:
+            if self.stylesheet in self.built_in_stylsheets:
+                self.data['stylesheet'] = self.built_in_stylsheets[self.stylesheet]
+
         #Convert source and output paths strings to Path objects
         self.source = Path(self.source)
         self.output = Path(self.output)
-
-        #If a home page file is not specified in the config, check if theres a file named 'home' or 'main', and use that
-        if not self.home:
-            home_files = [*list(self.source.glob('home.*')), *list(self.source.glob('main.*'))]
-            home_files = [x for x in home_files if x.is_file()]
-            if len(home_files) > 0:
-                self.data['home'] = str(home_files[0])
 
     #Allow getting config data values with normal . notation
     def __getattr__(self, key):
@@ -148,6 +166,19 @@ class Site():
 
         self.context['root_pages'] = [x.context for x in self.root_pages]
 
+        #If a home page file is not specified in the config, check if theres a file named 'home' or 'main', and use that
+        if not self.home:
+            home_page_names = ['.', 'home', 'main']
+            for name in home_page_names:
+                home_files = [x for x in self.root_pages if x.dest.parent == name]
+                if len(home_files) > 0:
+                    self.home = home_files[0]
+
+        if self.config.stylesheet:
+            if len(urllib.parse.urlparse(self.config.stylesheet).scheme) <= 1:
+                if self.config.stylsheet in self.asset_paths:
+                    pass
+
     # Remove output directory
     def clean(self):
         if self.config.output.exists():
@@ -166,15 +197,16 @@ class Site():
         # Create output directory
         self.config.output.mkdir(parents=True, exist_ok=True)
 
-        # Create main index file that redirects to the home page
-        with open(self.config.output / 'index.html', 'w+') as f:
-                f.write(
-f"""<!DOCTYPE html>
-<html>
-    <head>
-        <meta http-equiv="Refresh" content="0; url='{self.home.url}'" />
-    </head>
-</html>""")
+        # If the user hasn't made an index file for the root folder, make one that redirects to the home page
+        if str(self.config.output / 'index.html') not in [x.dest for x in self.pages]:
+            with open(self.config.output / 'index.html', 'w+') as f:
+                    f.write(
+    f"""<!DOCTYPE html>
+    <html>
+        <head>
+            <meta http-equiv="Refresh" content="0; url='{self.home.url}'" />
+        </head>
+    </html>""")
 
         # Render and write page files
         for x in self.pages.values():
