@@ -8,7 +8,11 @@ S4 Gen is a Super Simple Static Site Generator.
 S4 is currently in development and not ready for production use.
 
 > [!CAUTION]
-> S4 Main branch is currently not stable and general functionality may be broken
+> S4 Main branch is currently not stable and general functionality may be broken.
+> Use a tagged commit for a mostly-functional version, though all current versions are extremely early alpha and may have many issues.
+
+> [!WARNING]
+> Version v0.0.1 WILL auto-delete the output folder before each site build, use with caution as this could delete user files under some circumstances (such as the output folder being the same as folder which stores other user files, or adding files to the output folder after it is created.)
 
 ## Installation
 
