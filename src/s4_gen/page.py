@@ -8,7 +8,7 @@ class Page():
         self.site = site #Site object his page belongs to
         self.source = Path(source) #Source file/directory for this page
 
-         #Destination file for this page
+        #Destination file for this page
         if source.name == 'index.html':
             self.dest = self.site.config.output / self.source.relative_to(self.site.config.source)
         else:

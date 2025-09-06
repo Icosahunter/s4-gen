@@ -86,9 +86,9 @@ class Site():
         self.asset_paths = [x for x in self.asset_paths if self.config.output not in x.parents]
 
         # Load templates
-        self.template_path, self.template = self.load_template(self.config.template) #TODO: Make it so main template can be something other than html
-        self.auot_nav_page_template_path, self.auto_nav_page_template = self.load_template(self.config.nav_page_template)
-        self.template_paths = [self.template_path, self.auot_nav_page_template_path]
+        self.template_path, self.template = self.load_template(self.config.template)
+        self.auto_nav_page_template_path, self.auto_nav_page_template = self.load_template(self.config.nav_page_template)
+        self.template_paths = [self.template_path, self.auto_nav_page_template_path]
 
         # Get page paths
         self.page_paths = []
@@ -156,8 +156,12 @@ class Site():
         self.root_pages.sort(key=lambda x: x.dest.parent.name)
 
         # Handle home file
-        if self.config.home is None: # If home doesn't exist use the first root page
-            self.home = self.root_pages[0]
+        if self.config.home is None: # If home doesn't exist, find one
+            home_files = [x for x in self.root_pages if x.dest.parent in ['.', 'home', 'main']]
+            if len(home_files) > 0: # If something looks like a home page use it
+                self.home = home_files[0]
+            else:
+                self.home = self.root_pages[0] # Otherwise use the first root page
         else: # Otherwise, use the configured home page and make sure it is the first page in root
             self.home = self.pages[self.config.home]
             if self.home in self.root_pages:
@@ -166,18 +170,11 @@ class Site():
 
         self.context['root_pages'] = [x.context for x in self.root_pages]
 
-        #If a home page file is not specified in the config, check if theres a file named 'home' or 'main', and use that
-        if not self.home:
-            home_page_names = ['.', 'home', 'main']
-            for name in home_page_names:
-                home_files = [x for x in self.root_pages if x.dest.parent == name]
-                if len(home_files) > 0:
-                    self.home = home_files[0]
-
         if self.config.stylesheet:
-            if len(urllib.parse.urlparse(self.config.stylesheet).scheme) <= 1:
-                if self.config.stylsheet in self.asset_paths:
-                    pass
+            if self.config.stylsheet in self.asset_paths:
+                pass
+            else:
+                pass
 
     # Remove output directory
     def clean(self):
