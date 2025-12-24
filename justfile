@@ -1,14 +1,29 @@
 build-exe:
-    pyinstaller --onefile s4-gen.py
+	#!/usr/bin/env sh
+	source .venv/bin/activate
+	pip3 install --force-reinstall ./dist/*.whl
+	pyinstaller --onefile src/cli/cli.py --collect-submodules s4_gen
 
 setup:
-    python3 -m pip install -r requirements.txt
+	#!/usr/bin/env sh
+	python3 -m venv .venv
+	source .venv/bin/activate
+	pip3 install -r requirements.txt
 
 clean:
-    rm -r -f dist
+	rm -r -f dist
 
 build: clean setup
-    python3 -m build
+	#!/usr/bin/env sh
+	source .venv/bin/activate
+	python3 -m build
 
 install: build
-    python3 -m pip install --force-reinstall ./dist/*.whl
+	pip3 install --force-reinstall ./dist/*.whl
+
+test: build
+	#!/usr/bin/env sh
+	source .venv/bin/activate
+	pip3 install --force-reinstall ./dist/*.whl
+	cd ./test
+	python3 ../src/cli/cli.py build

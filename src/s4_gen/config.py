@@ -24,8 +24,8 @@ class SchemaValue:
                 val = fallback(conf)
                 if val is not None:
                     return val
-            except ValueError:
-                pass
+            except ValueError as e:
+                print('Fallback Error: ' + str(e))
         return None
 
 class StrListSchemaValue(SchemaValue):
@@ -33,9 +33,9 @@ class StrListSchemaValue(SchemaValue):
         super().__init__(list, fallbacks, 'list[str]')
 
     def convert_value(self, value):
-        if isinstance(value, self.type) and all([isinstance(x, basestr) for x in value]):
+        if isinstance(value, self.type) and all([isinstance(x, str) for x in value]):
             return value
-        elif isinstance(value, basestr)
+        elif isinstance(value, str):
             return [value]
         else:
             raise ValueError()
@@ -49,24 +49,24 @@ class BoolSchemaValue(SchemaValue):
             return value
         elif value in [1, 0]:
             return value == 1
-        elif isinstance(value, basestr) and value.lower() in ['f', 't', 'true', 'false', 'on', 'off', 'y', 'n', 'yes', 'no']:
+        elif isinstance(value, str) and value.lower() in ['f', 't', 'true', 'false', 'on', 'off', 'y', 'n', 'yes', 'no']:
             return value.lower() in ['t', 'true', 'y', 'yes', 'on']
         else:
             raise ValueError()
 
 class StrSchemaValue(SchemaValue):
     def __init__(self, fallbacks):
-        super().__init__(basestr, fallbacks, 'str')
+        super().__init__(str, fallbacks, 'str')
 
-class PathSchemaValue(SchemaValue)
+class PathSchemaValue(SchemaValue):
     def __init__(self, fallbacks):
         super().__init__(Path, fallbacks)
 
     def convert_value(self, value):
         if isinstance(value, self.type):
-            return value
-        elif isinstance(value, basestr):
-            return Path(basestr)
+            return value.resolve()
+        elif isinstance(value, str):
+            return Path(str).resolve()
         else:
             raise ValueError()
 
@@ -77,7 +77,7 @@ class EnumSchemaValue(SchemaValue):
     def convert_value(self, value): #TODO: Add fuzzy string matching for enums
         if isinstance(value, self.type):
             return value
-        elif isinstance(value, basestr) and value.lower() in [x.lower() for x in dir(self.type)]:
+        elif isinstance(value, str) and value.lower() in [x.lower() for x in dir(self.type)]:
             return self.type[dir(self.type)[[x.lower() for x in dir(self.type)].index(value.lower())]]
         else:
             raise ValueError()
@@ -98,7 +98,7 @@ class TemplateSchemaValue(SchemaValue):
                     raise ValueError('Could not read file!')
             else:
                 raise ValueError('Path does not exist!')
-        elif isinstance(value, basestr):
+        elif isinstance(value, str):
             if Path(value).exists():
                 try:
                     with open(value, 'r') as f:
@@ -110,7 +110,7 @@ class TemplateSchemaValue(SchemaValue):
         else:
             raise ValueError() 
 
-class DictSchemaValue:
+class DictSchemaValue(SchemaValue):
     def __init__(self, fallbacks):
         super().__init__(dict, fallbacks)
 
@@ -139,16 +139,26 @@ class FuncFallback:
     def __call__(self, conf):
         return self.func()
 
+DEFAULT_TEMPLATE_PATH = Path(__file__).parent / 'data/default_template.html'
+DEFAULT_TEMPLATE = None
+with open(DEFAULT_TEMPLATE_PATH, 'r') as f:
+    DEFAULT_TEMPLATE = Template(f.read())
+
+DEFAULT_NAV_TEMPLATE_PATH = Path(__file__).parent / 'data/default_nav_template.html'
+DEFAULT_NAV_TEMPLATE = None
+with open(DEFAULT_NAV_TEMPLATE_PATH, 'r') as f:
+    DEFAULT_NAV_TEMPLATE = Template(f.read())
+
 DEFAULT_SCHEMA = {
-    'output': PathSchemaValue([ValueFallback('./output')]),
-    'source': PathSchemaValue([ValueFallback('.')]),
+    'output': PathSchemaValue([ValueFallback(Path('./output').resolve())]),
+    'source': PathSchemaValue([ValueFallback(Path('.').resolve())]),
     'assets': StrListSchemaValue([ValueFallback(['**/*.css', '**/*.js', '**/*.png', '**/*.svg', '**/*.jpg', '**/*.jpeg', '**/*.gif', 'CNAME'])]),
     'pages': StrListSchemaValue([ValueFallback(['**/*.html', '**/*.md', '**/*.txt'])]),
     'auto_nav_pages': BoolSchemaValue([ValueFallback(True)]),
     'prettify_urls': BoolSchemaValue([ValueFallback(True)]),
     'home': StrSchemaValue([]),
-    'template': TemplateSchemaValue([]),
-    'nav_template': TemplateSchemaValue([]),
+    'template': TemplateSchemaValue([ValueFallback(DEFAULT_TEMPLATE)]),
+    'nav_template': TemplateSchemaValue([ValueFallback(DEFAULT_NAV_TEMPLATE)]),
     'icon': PathSchemaValue([]),
     'logo': PathSchemaValue([KeyFallback('icon')]),
     'context': DictSchemaValue([])
@@ -156,15 +166,27 @@ DEFAULT_SCHEMA = {
 
 class Config:
     
-    def __init__(self, data, schema=DEFAULT_SCHEMA, key=[], root=None):
+    def __init__(self, path=None, data=None, schema=DEFAULT_SCHEMA, key=[], root=None):
+
+        self.data = {}
+        self.path = path
         self.root = self if root is None else root
         self.key = key
         self.schema = schema
-        self.data = {}
-        for k, v in data.items():
+
+        _data = {}
+        
+        if path:
+            with open(path, 'rb') as f:
+                _data = tomllib.load(f)
+                
+        if data:
+            _data.update(data)
+
+        for k, v in _data.items():
             if isinstance(v, dict):
                 if k in self.schema and self.schema[k].type != dict:
-                    self.data[k] = Config(v, self.schema[k], [*self.key, k], root)
+                    self.data[k] = Config(None, v, self.schema[k], [*self.key, k], root)
                 else:
                     self.data[k] = v
             else:
@@ -186,6 +208,8 @@ class Config:
             if key in self.schema:
                 return self.schema[key].get_fallback(self.root)
             else:
+                keystr = '.'.join([*self.key, key])
+                print(f'WARNING: No value for {keystr} provided and key is not in config schema.')
                 return None #Throw warning here?
 
     def __setitem__(self, key, value):

@@ -1,2 +1,1 @@
-include src/s4_gen/data/**/*
 include src/s4_gen/data/*

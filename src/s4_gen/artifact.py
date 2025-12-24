@@ -26,6 +26,7 @@ class Page(Artifact):
 
     def __init__(self, path, config, context):
         super().__init__(path, config, context)
+        self.template = None
 
     @staticmethod
     def is_supported(path):
@@ -34,19 +35,21 @@ class Page(Artifact):
     def setup_context(self):
         super().setup_context()
 
-        dest = self['src']
+        self.template = self.config['template']
+
+        dest = self.src
         if self.config['prettify_urls']:
             dest = prettify_path(dest)
-        dest = Path(dest).with_suffix('')
+        dest = dest.with_suffix('')
         if dest.name != 'index':
             dest = dest / 'index.html'
         else:
             dest = dest.with_suffix('.html')
-        output = Path(config['output'])
-        self.dest = output / dest
-        self['dest'] = dest.as_posix()
+        self.dest = self.config['output'] / dest.relative_to(self.config['source'])
+        
+        self['dest'] = self.dest.as_posix()
 
-        self['url'] = quote(self.dest.relative_to(output))
+        self['url'] = quote(self.dest.relative_to(self.config['output']).as_posix())
 
         try:
             with open(self.src, 'r') as f:
@@ -60,9 +63,6 @@ class Page(Artifact):
         
         self['subpages'] = [x for x in self.global_context['artifacts'] if x.dest.parent == self.dest.parent and x.dest != self.dest and x.dest.suffix == '.html']
 
-        if 'template' not in self:
-            self['template'] = self.global_context['template']
-
     def convert_content(self):
         self['raw_html_content'] = self['raw_content']
 
@@ -70,9 +70,10 @@ class Page(Artifact):
         self['html_content'] = Template(self['raw_html_content']).render(**self.global_context, **self)
 
     def render_artifact(self):
-        self['html'] = Template(self['template']).render(**self.global_context, **self)
+        self['html'] = self.template.render(**self.global_context, **self)
 
     def write_artifact(self):
+        self.dest.parent.mkdir(exist_ok=True, parents=True)
         with open(self['dest'], 'w+') as f:
             f.write(self['html'])
 
@@ -84,7 +85,7 @@ class HtmlPage(Page):
     def is_supported(path):
         return Path(path).suffix == '.html'
 
-class TextPage(Page):
+class PlainTextPage(Page):
     def __init__(self, path, config, context):
         super().__init__(path, config, context)
 
@@ -93,9 +94,16 @@ class TextPage(Page):
         return Path(path).suffix == '.txt'
 
     def convert_content(self):
-        urls = re.findall('https?://.*\\W', self['raw_content'])
+        _html_text = self['raw_content']
+
+        urls = re.findall('https?://.*\\W', _html_text)
         for url in urls:
-            self['raw_html_content'] = self['raw_content'].replace(url, f'<a href="{url}">{url}</a>')
+            _html_text = _html_text.replace(url, f'<a href="{url}">{url}</a>')
+        
+        para = [x for x in _html_text.split('\n\n') if not x.isspace()]
+        _html_text = '<p>\n' + '\n</p>\n<p>\n'.join(para) + '\n</p>'
+
+        self['raw_html_content'] = _html_text
 
 class MarkdownPage(Page):
     def __init__(self, path, config, context):

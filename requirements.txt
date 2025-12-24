@@ -1,2 +1,4 @@
-markdown
-lxml
+mistletoe
+jinja2
+pyinstaller
+build
