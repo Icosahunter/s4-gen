@@ -8,6 +8,14 @@ from s4_gen.config import Config
 from s4_gen.artifact import Page, HtmlPage, PlainTextPage, MarkdownPage, Asset
 
 STD_CONF_PATH = Path('./s4.toml').resolve()
+HOME_REDIRECT_HTML = """
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Refresh" content="0; url='{home_url}'">
+    </head>
+</html>
+"""
 
 class Site:
 
@@ -45,18 +53,58 @@ class Site:
                     and x is not STD_CONF_PATH
                     and x is not self.config.path]
 
-    def _build_global_context(self):
+    def _build_context(self):
         self.context['artifacts'] = self.artifacts
         self.context['pages'] = [x for x in self.artifacts if x.dest.suffix == '.html']
         self.context['stylesheets'] = [x.context['url'] for x in self.artifacts if x.dest.suffix == '.css']
         self.context['logo'] = self.config['logo']
         self.context['icon'] = self.config['icon']
         self.context['favicon'] = self.config['icon']
-    
+        self.context['home_url'] = self._get_home_url()
+        self.context.update(self.config['context'])
+        
+    def _write_artifact(self):
+        self.config['output'].mkdir(exist_ok=True, parents=True)
+        if self.context['home_url']:    
+            with open(self.config['output'] / 'index.html', 'w+') as f:
+                f.write(HOME_REDIRECT_HTML.format(home_url=self.context['home_url']))
+
+    def _get_home_url(self):    
+        if [x for x in self.context['pages'] if x.dest == self.config['output'] / 'index.html']:
+            return None
+        else:
+            home_url = None
+            
+            root_pages = [x for x in self.context['pages'] if x.dest.parent == self.config['output']]
+
+            if not root_pages:
+                root_pages = self.context['pages']
+            
+            if self.config['home']:
+                home_artifact = [x for x in self.artifacts if x.src == self.config['home']]
+                if home_artifact:
+                    home_url = home_artifact[0]['url']
+                else:
+                    home_path = self.config['home']
+                    print(f'WARNING: Home file "{home_path}" does not exist. It should be a file in your source directory.')
+            else:
+                for name in ['home', 'main', 'landing', 'welcome']:
+                    home_artifact = [x for x in root_pages if name in x['title'].lower()]
+                    if home_artifact:
+                        home_url = home_artifact[0]['url']
+                        break
+
+            if not home_url:
+                home_url = root_pages[0]['url'] 
+
+            return home_url
+            
     def build(self):
         for step in self.build_steps:
-            if step == 'build_context':
-                self._build_global_context()
+        
+            site_method = getattr(self, '_' + step, None)
+            if callable(site_method):
+                site_method()
                 
             for artifact in self.artifacts:
                 method = getattr(artifact, step, None)

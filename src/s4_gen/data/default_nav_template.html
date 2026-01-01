@@ -3,6 +3,11 @@
 	<head>
 	</head>
 	<body>
-		{{html_content}}
+		<h2>{{ title }}</h2>
+		<ul>
+		    {% for page in sub_pages %}
+		        <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+		    {% endfor %}
+		</ul>
 	</body>
 </html>

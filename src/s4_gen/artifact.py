@@ -49,6 +49,8 @@ class Page(Artifact):
         
         self['dest'] = self.dest.as_posix()
 
+        self['title'] = filename_to_title(self.dest.parent.name)
+
         self['url'] = quote(self.dest.relative_to(self.config['output']).as_posix())
 
         try:
@@ -58,9 +60,6 @@ class Page(Artifact):
             self['raw_content'] = ''
 
     def build_context(self):
-        
-        self['title'] = filename_to_title(self.dest.parent.name)
-        
         self['subpages'] = [x for x in self.global_context['artifacts'] if x.dest.parent == self.dest.parent and x.dest != self.dest and x.dest.suffix == '.html']
 
     def convert_content(self):
@@ -76,6 +75,18 @@ class Page(Artifact):
         self.dest.parent.mkdir(exist_ok=True, parents=True)
         with open(self['dest'], 'w+') as f:
             f.write(self['html'])
+
+class NavPage(Page):
+    def __init__(self, path, config, context):
+        super().__init__(path, config, context)
+
+    @staticmethod
+    def is_supported(path):
+        return Path(path).is_dir()
+
+    def setup_context(self):
+        super().setup_context()
+        self.template = self.config['nav_template']
 
 class HtmlPage(Page):
     def __init__(self, path, config, context):
@@ -134,3 +145,30 @@ class Asset(Artifact):
 
     def write_artifact():
         shutil.copy(self['src'], self['dest'])
+
+class TemplateAsset(Asset):
+    
+    def __init__(self, path, config, context):
+        super().__init__(path, config, context)
+
+    @static_method
+    def is_supported(self, path):
+        try:
+            with open(path, 'r') as f:
+                pass
+            return True
+        except:
+            return False
+
+    def setup_context():
+        super().setup_context()
+        with open(self.src, 'r') as f:
+            self['raw_content'] = f.read()
+
+    def render_content(self):
+        self['text_content'] = Template(self['raw_content']).render(**self.global_context, **self)
+
+    def write_artifact(self):
+        self.dest.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.dest, 'w+') as f:
+            f.write(self['text_content'])

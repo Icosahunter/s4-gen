@@ -5,6 +5,8 @@ import tomllib
 
 from jinja2 import Template
 
+from s4_gen.utils import filename_to_title
+
 class SchemaValue:
 
     def __init__(self, type, fallbacks, typestr=None):
@@ -82,6 +84,17 @@ class EnumSchemaValue(SchemaValue):
         else:
             raise ValueError()
 
+class StrSelectSchemaValue(SchemaValue):
+    def __init__(self, strs, fallbacks):
+        super().__init__(str, fallbacks, 'one of ' + ', '.join(strs)
+        self.strs = strs
+
+    def convert_value(self, value): #TODO: Add fuzzy string matching for enums
+        if  value in self.strs:
+            return value
+        else:
+            raise ValueError()
+
 class TemplateSchemaValue(SchemaValue):
     def __init__(self, fallbacks):
         super().__init__(Template, fallbacks)
@@ -149,11 +162,21 @@ DEFAULT_NAV_TEMPLATE = None
 with open(DEFAULT_NAV_TEMPLATE_PATH, 'r') as f:
     DEFAULT_NAV_TEMPLATE = Template(f.read())
 
-DEFAULT_SCHEMA = {
+def ignore_fallback_func(conf):
+    ignore = ['**/.*', './s4-toml']
+    if conf['source'] in conf.path.parents:
+        ignore.append(conf.path.relative_to(conf['source']).as_posix())
+    if conf['source'] in conf['output'].parents:
+        ignore.append(conf['output'].relative_to(conf['source']).as_posix())
+    return ignore
+
+SITE_SCHEMA = {
     'output': PathSchemaValue([ValueFallback(Path('./output').resolve())]),
     'source': PathSchemaValue([ValueFallback(Path('.').resolve())]),
     'assets': StrListSchemaValue([ValueFallback(['**/*.css', '**/*.js', '**/*.png', '**/*.svg', '**/*.jpg', '**/*.jpeg', '**/*.gif', 'CNAME'])]),
-    'pages': StrListSchemaValue([ValueFallback(['**/*.html', '**/*.md', '**/*.txt'])]),
+    'pages': StrListSchemaValue([ValueFallback(['**', '**/*.html', '**/*.md', '**/*.txt'])]),
+    'template_assets': StrListSchemaValue([ValueFallback([])]),
+    'ignore': StrListSchemaValue([FuncFallback(ignore_fallback_func)]),
     'auto_nav_pages': BoolSchemaValue([ValueFallback(True)]),
     'prettify_urls': BoolSchemaValue([ValueFallback(True)]),
     'home': StrSchemaValue([]),
@@ -161,12 +184,19 @@ DEFAULT_SCHEMA = {
     'nav_template': TemplateSchemaValue([ValueFallback(DEFAULT_NAV_TEMPLATE)]),
     'icon': PathSchemaValue([]),
     'logo': PathSchemaValue([KeyFallback('icon')]),
-    'context': DictSchemaValue([])
+    'website_title': StrSchemaValue([FuncFallback(lambda x: filename_to_title(x['source'].name))]),
+    'context': DictSchemaValue([ValueFallback({})])
+}
+
+ARTIFACT_SCHEMA = {
+    'prettify_urls': BoolSchemaValue([ValueFallback(True)]),
+    'template': TemplateSchemaValue([ValueFallback(DEFAULT_TEMPLATE)]),
+    
 }
 
 class Config:
     
-    def __init__(self, path=None, data=None, schema=DEFAULT_SCHEMA, key=[], root=None):
+    def __init__(self, path=None, data=None, schema=SITE_SCHEMA, key=[], root=None):
 
         self.data = {}
         self.path = path
